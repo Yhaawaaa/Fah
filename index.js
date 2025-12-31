@@ -1,252 +1,202 @@
 require('dotenv').config();
 const express = require('express');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const fs = require('fs');
 
-// ⚠️ ADD THIS WEB SERVER - MUST BE AT THE TOP!
+// ========== WEB SERVER FOR RENDER ==========
 const app = express();
 app.get('/', (req, res) => {
   res.send('Discord Bot is running!');
 });
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Web server running on port ${PORT}`);
 });
 
-// Your existing Discord bot code below...
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-// ... rest of your code
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-
+// ========== DISCORD BOT ==========
 const client = new Client({ 
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
-    ] 
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
+  ] 
 });
 
-// ========== UPDATED CONFIGURATION ==========
+// Configuration
 const CONFIG = {
-    confessionChannelId: '1451824050459639930', // Public confession channel
-    logsChannelId: '1454962657127039242', // NEW: Confession log channel
-    adminRoleId: '1455471042847047701', // Admin role
-    storageFile: './confessions.json'
+  confessionChannelId: process.env.CONFESSION_CHANNEL,
+  logsChannelId: process.env.LOG_CHANNEL,
+  adminRoleId: process.env.ADMIN_ROLE,
+  storageFile: './confessions.json'
 };
-// ===========================================
 
-// Storage for confessions
 let confessions = [];
 
-// Load existing confessions from file
 function loadConfessions() {
-    try {
-        if (fs.existsSync(CONFIG.storageFile)) {
-            const data = fs.readFileSync(CONFIG.storageFile, 'utf8');
-            confessions = JSON.parse(data);
-            console.log(`📂 Loaded ${confessions.length} confessions from storage`);
-        } else {
-            fs.writeFileSync(CONFIG.storageFile, '[]');
-            console.log('📂 Created new confessions storage file');
-        }
-    } catch (error) {
-        console.error('❌ Error loading confessions:', error);
-        confessions = [];
+  try {
+    if (fs.existsSync(CONFIG.storageFile)) {
+      const data = fs.readFileSync(CONFIG.storageFile, 'utf8');
+      confessions = JSON.parse(data);
+      console.log(`📂 Loaded ${confessions.length} confessions`);
+    } else {
+      fs.writeFileSync(CONFIG.storageFile, '[]');
     }
+  } catch (error) {
+    console.error('❌ Error loading confessions:', error);
+    confessions = [];
+  }
 }
 
-// Save confessions to file
 function saveConfessions() {
-    try {
-        fs.writeFileSync(CONFIG.storageFile, JSON.stringify(confessions, null, 2));
-    } catch (error) {
-        console.error('❌ Error saving confessions:', error);
-    }
+  try {
+    fs.writeFileSync(CONFIG.storageFile, JSON.stringify(confessions, null, 2));
+  } catch (error) {
+    console.error('❌ Error saving confessions:', error);
+  }
 }
 
-// ========== BOT STARTUP ==========
+// Bot startup
 client.once('ready', () => {
-    console.log(`✅ Logged in as ${client.user.tag}!`);
-    console.log(`📝 Confession Bot Ready!`);
-    
-    loadConfessions();
-    console.log(`📊 Total confessions: ${confessions.length}`);
-    
-    client.user.setActivity('!confess to confess', { type: 'WATCHING' });
+  console.log(`🤖 Logged in as ${client.user.tag}!`);
+  console.log(`🔗 Invite: https://discord.com/oauth2/authorize?client_id=${client.user.id}&permissions=2147485696&scope=bot`);
+  loadConfessions();
+  console.log(`📊 Total confessions: ${confessions.length}`);
+  client.user.setActivity('!confess', { type: 'WATCHING' });
 });
 
-// ========== CONFESSION COMMAND ==========
+// Commands
 client.on('messageCreate', async message => {
-    if (message.author.bot) return;
+  if (message.author.bot) return;
 
-    // Command: !confess
-    if (message.content.toLowerCase() === '!confess') {
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('start_confession')
-                    .setLabel('Make Anonymous Confession')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('📝')
-            );
+  if (message.content.toLowerCase() === '!confess') {
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('start_confession')
+          .setLabel('Make Anonymous Confession')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('📝')
+      );
 
-        const embed = new EmbedBuilder()
-            .setColor(0x5865F2)
-            .setTitle('Anonymous Confession')
-            .setDescription('Click the button below to make an anonymous confession.\n\n**Your identity will be completely hidden from everyone.**')
-            .addFields(
-                { name: '📋 Rules', value: '• Be respectful\n• No personal information\n• No harassment\n• No spam' }
-            )
-            .setFooter({ text: 'Click the button to begin' });
+    const embed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Anonymous Confession')
+      .setDescription('Click below to confess anonymously.')
+      .addFields(
+        { name: 'Rules', value: '• Be respectful\n• No personal info\n• No harassment' }
+      )
+      .setFooter({ text: 'Your identity is completely hidden' });
 
-        await message.reply({ 
-            embeds: [embed], 
-            components: [row] 
-        });
+    await message.reply({ embeds: [embed], components: [row] });
+  }
+
+  if (message.content.toLowerCase() === '!confessionslog') {
+    if (!message.member.roles.cache.has(CONFIG.adminRoleId)) {
+      return message.reply('❌ Admin only.');
     }
-
-    // ========== ADMIN COMMANDS ==========
     
-    // Command: !confessionslog - Get all confessions with user info (ADMIN ONLY)
-    if (message.content.toLowerCase() === '!confessionslog') {
-        if (!message.member.roles.cache.has(CONFIG.adminRoleId)) {
-            return message.reply('❌ You need to be the glorious king Yha to be able to use that command.');
-        }
-        
-        if (confessions.length === 0) {
-            return message.reply('📭 No confessions have been made yet.');
-        }
-
-        // Create CSV file content
-        let csvContent = 'Confession ID,User ID,Username,Timestamp,Confession\n';
-        confessions.forEach(conf => {
-            const escapedConfession = conf.confession.replace(/"/g, '""').replace(/\n/g, ' ');
-            csvContent += `${conf.anonymousId},${conf.userId},${conf.username},${conf.timestamp},"${escapedConfession}"\n`;
-        });
-
-        // Save temporary CSV file
-        const csvPath = path.join(__dirname, 'temp_confessions.csv');
-        fs.writeFileSync(csvPath, csvContent);
-
-        // Send CSV file
-        await message.channel.send({
-            content: `📊 **All Confessions Log**\n**Total:** ${confessions.length}\nDownload the CSV file below:`,
-            files: [{
-                attachment: csvPath,
-                name: 'confessions_log.csv'
-            }]
-        });
-
-        // Clean up temp file
-        setTimeout(() => {
-            if (fs.existsSync(csvPath)) fs.unlinkSync(csvPath);
-        }, 10000);
-    }
-
-    // REMOVED: !viewconfession, !deleteconfession, !confessionstats commands
-    // Only admins can see logs via !confessionslog CSV
-});
-
-// ========== CONFESSION BUTTON HANDLER ==========
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isButton() || interaction.customId !== 'start_confession') return;
-
-    const modal = new ModalBuilder()
-        .setCustomId('confession_modal')
-        .setTitle('Anonymous Confession');
-
-    const confessionInput = new TextInputBuilder()
-        .setCustomId('confession_text')
-        .setLabel('Your Confession')
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('Type your confession here...')
-        .setRequired(true)
-        .setMinLength(10)
-        .setMaxLength(2000);
-
-    const actionRow = new ActionRowBuilder().addComponents(confessionInput);
-    modal.addComponents(actionRow);
-
-    await interaction.showModal(modal);
-});
-
-// ========== MODAL SUBMISSION HANDLER ==========
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isModalSubmit() || interaction.customId !== 'confession_modal') return;
-
-    const confessionText = interaction.fields.getTextInputValue('confession_text');
+    if (confessions.length === 0) return message.reply('📭 No confessions yet.');
     
-    // Create confession data
-    const confessionData = {
-        id: Date.now(),
-        userId: interaction.user.id,
-        username: interaction.user.tag,
-        confession: confessionText,
-        timestamp: new Date().toISOString(),
-        anonymousId: `CONF-${Date.now().toString(36).toUpperCase()}`
-    };
-
-    confessions.push(confessionData);
-    saveConfessions();
-
-    // ========== POST TO PUBLIC CHANNEL (JUST THE TEXT) ==========
-    try {
-        const confessionChannel = await client.channels.fetch(CONFIG.confessionChannelId);
-        
-        // SIMPLE POST - Just the confession text, no IDs, no metadata
-        const confessionEmbed = new EmbedBuilder()
-            .setColor(0xE91E63)
-            .setDescription(`"${confessionText}"`)
-            .setFooter({ text: 'Anonymous Confession' });
-
-        await confessionChannel.send({ embeds: [confessionEmbed] });
-    } catch (error) {
-        console.error('Error posting confession:', error);
-        await interaction.reply({ 
-            content: '❌ Error: Could not post confession.', 
-            ephemeral: true 
-        });
-        return;
-    }
-
-    // ========== SEND TO LOGS CHANNEL (WITH FULL USER INFO) ==========
-    try {
-        const logsChannel = await client.channels.fetch(CONFIG.logsChannelId);
-        
-        const logEmbed = new EmbedBuilder()
-            .setColor(0x2B2D31)
-            .setTitle('📋 New Confession Log')
-            .addFields(
-                { name: 'Confession ID', value: confessionData.anonymousId },
-                { name: 'User', value: `${confessionData.username}\nID: \`${confessionData.userId}\`` },
-                { name: 'Confession', value: confessionText },
-                { name: 'Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:F>` }
-            )
-            .setFooter({ text: `Total Confessions: ${confessions.length}` })
-            .setTimestamp();
-
-        await logsChannel.send({ embeds: [logEmbed] });
-    } catch (error) {
-        console.error('Error sending to logs channel:', error);
-    }
-
-    // Send confirmation to user
-    await interaction.reply({ 
-        content: '✅ Your confession has been posted anonymously!', 
-        ephemeral: true 
+    let csvContent = 'Confession ID,User ID,Username,Timestamp,Confession\n';
+    confessions.forEach(conf => {
+      const escaped = conf.confession.replace(/"/g, '""').replace(/\n/g, ' ');
+      csvContent += `${conf.anonymousId},${conf.userId},${conf.username},${conf.timestamp},"${escaped}"\n`;
     });
+
+    const csvPath = './temp_confessions.csv';
+    fs.writeFileSync(csvPath, csvContent);
+
+    await message.channel.send({
+      content: `📊 Total: ${confessions.length}`,
+      files: [{ attachment: csvPath, name: 'confessions_log.csv' }]
+    });
+
+    fs.unlinkSync(csvPath);
+  }
 });
 
-// ========== ERROR HANDLING ==========
-process.on('unhandledRejection', error => {
-    console.error('Unhandled promise rejection:', error);
+// Button handler
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isButton() || interaction.customId !== 'start_confession') return;
+
+  const modal = new ModalBuilder()
+    .setCustomId('confession_modal')
+    .setTitle('Anonymous Confession');
+
+  const confessionInput = new TextInputBuilder()
+    .setCustomId('confession_text')
+    .setLabel('Your Confession')
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder('Type your confession...')
+    .setRequired(true)
+    .setMinLength(10)
+    .setMaxLength(2000);
+
+  const actionRow = new ActionRowBuilder().addComponents(confessionInput);
+  modal.addComponents(actionRow);
+
+  await interaction.showModal(modal);
 });
 
-process.on('uncaughtException', error => {
-    console.error('Uncaught exception:', error);
+// Modal handler
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isModalSubmit() || interaction.customId !== 'confession_modal') return;
+
+  const confessionText = interaction.fields.getTextInputValue('confession_text');
+  
+  const confessionData = {
+    id: Date.now(),
+    userId: interaction.user.id,
+    username: interaction.user.tag,
+    confession: confessionText,
+    timestamp: new Date().toISOString(),
+    anonymousId: `CONF-${Date.now().toString(36).toUpperCase()}`
+  };
+
+  confessions.push(confessionData);
+  saveConfessions();
+
+  // Post to confession channel
+  try {
+    const confessionChannel = await client.channels.fetch(CONFIG.confessionChannelId);
+    const confessionEmbed = new EmbedBuilder()
+      .setColor(0xE91E63)
+      .setDescription(`"${confessionText}"`)
+      .setFooter({ text: 'Anonymous Confession' });
+
+    await confessionChannel.send({ embeds: [confessionEmbed] });
+  } catch (error) {
+    console.error('Error posting confession:', error);
+    await interaction.reply({ content: '❌ Error posting confession.', ephemeral: true });
+    return;
+  }
+
+  // Send to logs channel
+  try {
+    const logsChannel = await client.channels.fetch(CONFIG.logsChannelId);
+    const logEmbed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setTitle('📋 New Confession Log')
+      .addFields(
+        { name: 'Confession ID', value: confessionData.anonymousId },
+        { name: 'User', value: `${confessionData.username} (${confessionData.userId})` },
+        { name: 'Confession', value: confessionText.length > 1000 ? confessionText.substring(0, 1000) + '...' : confessionText },
+        { name: 'Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:F>` }
+      )
+      .setFooter({ text: `Total: ${confessions.length}` })
+      .setTimestamp();
+
+    await logsChannel.send({ embeds: [logEmbed] });
+  } catch (error) {
+    console.error('Error sending to logs:', error);
+  }
+
+  await interaction.reply({ 
+    content: `✅ Confession posted!`, 
+    ephemeral: true 
+  });
 });
 
-// ========== START THE BOT ==========
+// Start bot
 client.login(process.env.BOT_TOKEN);
