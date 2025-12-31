@@ -1,3 +1,20 @@
+require('dotenv').config();
+const express = require('express');
+
+// ⚠️ ADD THIS WEB SERVER - MUST BE AT THE TOP!
+const app = express();
+app.get('/', (req, res) => {
+  res.send('Discord Bot is running!');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Web server running on port ${PORT}`);
+});
+
+// Your existing Discord bot code below...
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+// ... rest of your code
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
